@@ -15,7 +15,14 @@
     }
     #reader {
       width: 300px;
+      height: 300px;
       margin: 20px auto;
+      border: 1px solid #ccc;
+    }
+    #result {
+      margin-top: 20px;
+      font-size: 18px;
+      color: #333;
     }
     .btn {
       margin-top: 20px;
@@ -35,65 +42,53 @@
   <h1>QR Code Scanner</h1>
   <div id="reader"></div>
   <p id="result">Waiting for scan...</p>
-  <button class="btn" onclick="closeApp()">Close App</button>
+  <button class="btn" id="stopScan">Stop Scanning</button>
 
   <script>
-    // Close the app (if running inside Telegram WebApp)
-    function closeApp() {
-      if (typeof Telegram !== "undefined" && Telegram.WebApp) {
-        Telegram.WebApp.close();
-      } else {
-        alert("Not running inside Telegram.");
-      }
-    }
-
-    // Element for displaying the result
     const resultElement = document.getElementById('result');
+    const stopScanButton = document.getElementById('stopScan');
     const html5QrCode = new Html5Qrcode("reader");
 
-    // Function to handle successful scans
+    // Callback on successful scan
     function onScanSuccess(decodedText, decodedResult) {
       resultElement.innerText = `Scanned: ${decodedText}`;
-      if (typeof Telegram !== "undefined" && Telegram.WebApp) {
-        Telegram.WebApp.sendData(decodedText);
-      }
-      html5QrCode.stop();
+      console.log(`Decoded text: ${decodedText}`, decodedResult);
+
+      // Optionally stop scanning after successful detection
+      html5QrCode.stop().then(() => {
+        console.log("Scanning stopped.");
+      }).catch(err => {
+        console.error("Failed to stop scanning: ", err);
+      });
     }
 
-    // Function to handle failed scans
+    // Callback on scan failure (optional)
     function onScanFailure(error) {
-      console.warn(`QR scan failed: ${error}`);
+      console.warn(`Scan failed: ${error}`);
     }
 
-    // Request camera access
-    function startScanner() {
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-        .then(stream => {
-          // If permission granted, start QR scanner
-          html5QrCode.start(
-            { facingMode: "environment" }, // Use back camera
-            {
-              fps: 10, // Scans per second
-              qrbox: 250 // QR code scanning box size
-            },
-            onScanSuccess,
-            onScanFailure
-          );
-        })
-        .catch(err => {
-          // If permission denied or other error occurs
-          console.error("Camera access denied:", err);
-          resultElement.innerText = "Camera access denied. Please allow camera access.";
-        });
-    }
+    // Start scanning when the page loads
+    html5QrCode.start(
+      { facingMode: "environment" }, // Use back camera if available
+      {
+        fps: 10,   // Frame-per-second for scanning
+        qrbox: 250 // Specify the scanning box size
+      },
+      onScanSuccess,
+      onScanFailure
+    ).catch(err => {
+      console.error("Failed to start scanning: ", err);
+      resultElement.innerText = "Failed to access camera. Please check permissions.";
+    });
 
-    // Initialize the scanner on page load
-    document.addEventListener("DOMContentLoaded", () => {
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        startScanner();
-      } else {
-        resultElement.innerText = "Camera not supported in this browser.";
-      }
+    // Stop scanning when the button is clicked
+    stopScanButton.addEventListener('click', () => {
+      html5QrCode.stop().then(() => {
+        console.log("Scanning stopped.");
+        resultElement.innerText = "Scanning stopped.";
+      }).catch(err => {
+        console.error("Error stopping scanning: ", err);
+      });
     });
   </script>
 </body>
